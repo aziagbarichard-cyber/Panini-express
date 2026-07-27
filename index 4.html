@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panini Express — Caisse</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Panini Express">
+<meta name="theme-color" content="#1e211d">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+*{box-sizing:border-box;}
+body{ margin:0; background:#1e211d; font-family:-apple-system,Helvetica,Arial,sans-serif; color:#262420; }
+.wrap{ max-width:900px; margin:0 auto; padding:16px 12px 60px; }
+h1{ color:#f5f1e4; font-size:22px; margin:0 0 2px; }
+.sub{ color:#d9a441; font-size:12px; margin-bottom:14px; }
+.tabs{ display:flex; gap:5px; flex-wrap:wrap; margin-bottom:14px; }
+.tab{ background:transparent; border:2px solid #f5f1e4; color:#f5f1e4; padding:7px 12px; border-radius:4px; font-size:12px; font-weight:600; cursor:pointer; }
+.tab.active{ background:#d9a441; border-color:#d9a441; color:#262420; }
+.panel{ display:none; }
+.panel.active{ display:block; }
+.card{ background:#f5f1e4; border-radius:6px; padding:16px; margin-bottom:14px; }
+.card h2{ font-size:14px; margin:0 0 10px; border-bottom:1px solid #d8d1ba; padding-bottom:6px; }
+.card h2.cat{ font-size:12px; color:#c1432a; margin:14px 0 6px; border-bottom:none; padding-bottom:0; }
+.card h2.cat:first-of-type{ margin-top:0; }
+.row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+label{ font-size:10px; color:#6b6a63; text-transform:uppercase; display:block; margin-bottom:3px; }
+input,select{ padding:8px; border:1px solid #d8d1ba; border-radius:4px; font-size:14px; background:#fff; color:#262420; }
+.field{ flex:1; min-width:110px; }
+button.action{ background:#c1432a; color:#fff; border:none; padding:9px 14px; border-radius:4px; font-weight:600; font-size:12px; cursor:pointer; height:36px; }
+button.action.green{ background:#5f7a45; }
+button.small{ background:none; border:none; color:#c1432a; font-size:16px; cursor:pointer; }
+table{ width:100%; border-collapse:collapse; font-size:13px; }
+th,td{ text-align:left; padding:6px; border-bottom:1px solid #d8d1ba; }
+th{ font-size:10px; text-transform:uppercase; color:#6b6a63; }
+.num{ text-align:right; }
+.exp-row{ display:flex; align-items:center; gap:8px; padding:7px 2px; border-bottom:1px solid #d8d1ba; flex-wrap:wrap; }
+.exp-row input[type=checkbox]{ width:19px; height:19px; }
+.exp-row .pname{ flex:1; font-size:13px; min-width:90px; }
+.exp-row input[type=number]{ width:64px; text-align:right; }
+.exp-row .mini-lbl{ font-size:9px; color:#8b8c89; text-transform:uppercase; }
+.qty-block, .price-block{ display:flex; flex-direction:column; align-items:center; gap:1px; }
+.shop-row{ display:flex; align-items:center; gap:8px; padding:7px 2px; border-bottom:1px solid #d8d1ba; flex-wrap:wrap; }
+.shop-row .pname{ flex:1; font-size:13px; min-width:90px; }
+.shop-row .refp{ font-size:11px; color:#6b6a63; min-width:70px; text-align:right; }
+.shop-row input[type=number]{ width:60px; text-align:right; }
+.shop-row .subtotal{ font-size:12px; font-weight:700; color:#c1432a; min-width:60px; text-align:right; }
+.bilan{ background:#fff; border:2px dashed #d8d1ba; border-radius:6px; padding:16px; max-width:380px; margin:0 auto; }
+.bline{ display:flex; justify-content:space-between; font-size:14px; padding:5px 0; }
+.bline.profit{ border-top:1px solid #d8d1ba; margin-top:6px; padding-top:10px; font-weight:700; font-size:16px; color:#5f7a45; }
+.bline.profit.neg{ color:#c1432a; }
+.bline.dime{ font-weight:700; color:#d9a441; }
+.blessing{ text-align:center; margin-top:14px; padding-top:10px; border-top:1px dashed #d8d1ba; font-weight:700; color:#c1432a; }
+.empty{ color:#6b6a63; font-style:italic; font-size:13px; }
+.note{ font-size:11px; color:#8b8c89; margin:-4px 0 10px; }
+.stat{ background:#fff; border-radius:6px; padding:10px 12px; flex:1; min-width:110px; }
+.summary-strip{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.lbl{ font-size:9px; text-transform:uppercase; color:#6b6a63; }
+.amt{ font-size:16px; font-weight:700; }
+.tomato{ color:#c1432a; } .avocado{ color:#5f7a45; }
+.badge{ background:#5f7a45; color:#fff; border-radius:8px; padding:1px 7px; font-size:9px; }
+.toast{ position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#262420; color:#f5f1e4; padding:9px 18px; border-radius:16px; font-size:12px; opacity:0; transition:opacity .3s; }
+.toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Panini Express</h1>
+  <div class="sub">Caisse · Dépenses · Recette · Dîme (hors-ligne)</div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="jour">Jour</button>
+    <button class="tab" data-tab="courses">Courses</button>
+    <button class="tab" data-tab="produits">Produits</button>
+    <button class="tab" data-tab="historique">Historique</button>
+    <button class="tab" data-tab="semaine">Semaine</button>
+    <button class="tab" data-tab="mois">Mois</button>
+  </div>
+
+  <div class="panel active" id="panel-jour">
+    <div class="card">
+      <div class="row">
+        <div class="field"><label>Date</label><input type="date" id="dateInput"></div>
+        <div id="closedBadgeWrap"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Dépenses — coche ce que tu as acheté</h2>
+      <div class="note">Pour chaque article : écris soit le <b>nombre pris</b> (le montant se calcule seul selon le prix unitaire), soit directement le <b>montant payé</b>.</div>
+      <div id="expenseChecklist"></div>
+    </div>
+
+    <div class="card">
+      <h2>Recette du jour</h2>
+      <div class="row">
+        <div class="field"><label>Libellé</label><input type="text" id="revLabel" placeholder="Vente..."></div>
+        <div class="field"><label>Montant</label><input type="number" id="revAmount" placeholder="0" min="0" step="0.01"></div>
+        <button class="action green" id="addRevBtn">+ Ajouter</button>
+      </div>
+      <table><thead><tr><th>Libellé</th><th class="num">Montant</th><th></th></tr></thead><tbody id="revTableBody"></tbody></table>
+      <div id="revEmpty" class="empty">Aucune recette pour ce jour.</div>
+    </div>
+
+    <div class="bilan">
+      <div class="bline"><span>Total (dépenses)</span><span id="tDep">0</span></div>
+      <div class="bline"><span>Recette</span><span id="tRec">0</span></div>
+      <div class="bline profit" id="tProfitLine"><span>Bénéfice</span><span id="tProfit">0</span></div>
+      <div class="bline dime"><span>Dîme (10% du bénéfice)</span><span id="tDime">0</span></div>
+      <div class="blessing">Merci Seigneur…! 🙏</div>
+    </div>
+
+    <div class="row" style="justify-content:center; margin-top:14px;">
+      <button class="action" id="closeDayBtn" style="background:#d9a441; color:#262420;">✓ Clôturer la journée</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-courses">
+    <div class="card">
+      <h2>Marché de demain</h2>
+      <div class="note">Écris le nombre d'unités à racheter pour chaque article — le total estimé se calcule selon le prix unitaire (paquet ÷ nombre d'unités).</div>
+      <div id="shoppingChecklist"></div>
+      <div class="row" style="justify-content:space-between; margin-top:12px;">
+        <div class="stat" style="flex:none; min-width:180px;"><div class="lbl">Total estimé</div><div class="amt tomato" id="shopTotal">0</div></div>
+        <button class="action" id="resetShopBtn">Vider</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-produits">
+    <div class="card">
+      <h2>Ajouter un produit</h2>
+      <div class="row">
+        <div class="field"><label>Nom</label><input type="text" id="newProdName" placeholder="Ex: Pain panini"></div>
+        <div class="field"><label>Catégorie</label>
+          <select id="newProdCat">
+            <option>Pains</option><option>Viandes & Œufs</option><option>Sauces & Condiments</option>
+            <option>Légumes</option><option>Épices & Assaisonnements</option><option>Cuisson & Combustible</option>
+            <option>Emballage</option><option>Charges / Services</option><option>Autre</option>
+          </select>
+        </div>
+        <div class="field"><label>Prix du paquet</label><input type="number" id="newProdPackPrice" placeholder="Ex: 500" min="0" step="0.01"></div>
+        <div class="field"><label>Unités / paquet</label><input type="number" id="newProdPackSize" placeholder="Ex: 6" min="1" step="1" value="1"></div>
+        <button class="action" id="addProdBtn">+ Ajouter</button>
+      </div>
+      <div class="note">Ex : Pain panini — paquet à 500f pour 6 pains → prix unitaire calculé automatiquement (≈83f/pain).</div>
+    </div>
+    <div class="card"><h2>Liste des produits</h2><div id="prodListByCat"></div></div>
+  </div>
+
+  <div class="panel" id="panel-historique">
+    <div class="card">
+      <h2>Historique journalier</h2>
+      <table><thead><tr><th>Date</th><th class="num">Dép.</th><th class="num">Rec.</th><th class="num">Bén.</th><th class="num">Dîme</th><th></th></tr></thead><tbody id="histTableBody"></tbody></table>
+      <div id="histEmpty" class="empty">Aucune donnée enregistrée.</div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-semaine">
+    <div class="card"><div class="row"><div class="field"><label>Date dans la semaine</label><input type="date" id="weekAnchor"></div></div></div>
+    <div class="summary-strip">
+      <div class="stat"><div class="lbl">Dépenses</div><div class="amt tomato" id="wkDep">0</div></div>
+      <div class="stat"><div class="lbl">Recettes</div><div class="amt avocado" id="wkRec">0</div></div>
+      <div class="stat"><div class="lbl">Bénéfice</div><div class="amt" id="wkProfit">0</div></div>
+    </div>
+    <div class="card"><h2>Détail 7 jours</h2><table><thead><tr><th>Date</th><th class="num">Dép.</th><th class="num">Rec.</th><th class="num">Bén.</th></tr></thead><tbody id="wkTableBody"></tbody></table></div>
+  </div>
+
+  <div class="panel" id="panel-mois">
+    <div class="card"><div class="row"><div class="field"><label>Mois</label><input type="month" id="monthAnchor"></div></div></div>
+    <div class="summary-strip">
+      <div class="stat"><div class="lbl">Dépenses</div><div class="amt tomato" id="moDep">0</div></div>
+      <div class="stat"><div class="lbl">Recettes</div><div class="amt avocado" id="moRec">0</div></div>
+      <div class="stat"><div class="lbl">Bénéfice</div><div class="amt" id="moProfit">0</div></div>
+    </div>
+    <div class="card"><h2>Détail du mois</h2><table><thead><tr><th>Date</th><th class="num">Dép.</th><th class="num">Rec.</th><th class="num">Bén.</th></tr></thead><tbody id="moTableBody"></tbody></table></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'fastfood-data-v2';
+let DATA = { products: [], days: {}, shopping: {} };
+const DEFAULT_PRODUCTS = [
+  {name:"Petit pain (500f/unité)", cat:"Pains", price:500, packPrice:500, packSize:1},{name:"Gros pain (1000f/unité)", cat:"Pains", price:1000, packPrice:1000, packSize:1},
+  {name:"Pain panini", cat:"Pains", price:500, packPrice:500, packSize:6},{name:"Pain chawarma", cat:"Pains", price:1200, packPrice:1200, packSize:1},{name:"Pain hamburger", cat:"Pains", price:250, packPrice:250, packSize:1},
+  {name:"Viande hachée", cat:"Viandes & Œufs", price:4000, packPrice:4000, packSize:1},{name:"Saucisson", cat:"Viandes & Œufs", price:1000, packPrice:1000, packSize:1},{name:"Saucisse", cat:"Viandes & Œufs", price:0},{name:"Œuf", cat:"Viandes & Œufs", price:3000, packPrice:3000, packSize:30},
+  {name:"Mayo", cat:"Sauces & Condiments", price:800, packPrice:800, packSize:1},{name:"Ketchups", cat:"Sauces & Condiments", price:750, packPrice:750, packSize:1},
+  {name:"Tomate", cat:"Légumes", price:0},{name:"Oignon", cat:"Légumes", price:0},{name:"Salade", cat:"Légumes", price:0},{name:"Courgettes", cat:"Légumes", price:0},
+  {name:"Épice", cat:"Épices & Assaisonnements", price:0},{name:"Bouillons maggie poulet", cat:"Épices & Assaisonnements", price:0},{name:"Levure chimique", cat:"Épices & Assaisonnements", price:200, packPrice:200, packSize:1},
+  {name:"Huile", cat:"Cuisson & Combustible", price:500, packPrice:500, packSize:1},{name:"Gaz", cat:"Cuisson & Combustible", price:5500, packPrice:5500, packSize:1},
+  {name:"Papier aluminium", cat:"Emballage", price:0},{name:"Sachets", cat:"Emballage", price:100, packPrice:100, packSize:1},
+  {name:"Eau", cat:"Autre", price:0},
+];
+const CAT_ORDER = ["Pains","Viandes & Œufs","Sauces & Condiments","Légumes","Épices & Assaisonnements","Cuisson & Combustible","Emballage","Charges / Services","Autre"];
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0'); }
+function fmt(n){ n=Number(n)||0; return n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ DATA = JSON.parse(raw); } else { DATA = { products: DEFAULT_PRODUCTS.map(p=>({id:uid(),...p})), days:{}, shopping:{}, _syncedDefaults: DEFAULT_PRODUCTS.map(p=>p.name.toLowerCase()) }; saveData(); }
+    if(!DATA.shopping) DATA.shopping = {};
+    if(!DATA._syncedDefaults) DATA._syncedDefaults = [];
+    let migrated = false;
+    DEFAULT_PRODUCTS.forEach(dp=>{
+      const key = dp.name.toLowerCase();
+      if(DATA._syncedDefaults.includes(key)) return;
+      if(!DATA.products.some(p=>p.name.toLowerCase()===key)){ DATA.products.push({id:uid(), name:dp.name, cat:dp.cat, price:dp.price}); }
+      DATA._syncedDefaults.push(key); migrated = true;
+    });
+    if(migrated) saveData();
+
+    // Correction ponctuelle : Pain panini se vend en paquet de 6 pains à 500f (~83f/pain)
+    if(!DATA._syncedDefaults.includes('fix:pain-panini-pack')){
+      const pp = DATA.products.find(p=>p.name.toLowerCase()==='pain panini');
+      if(pp && (!pp.packPrice || pp.packPrice===0) && (!pp.packSize || pp.packSize<=1)){
+        pp.packPrice = 500; pp.packSize = 6; pp.price = 500;
+        saveData();
+      }
+      DATA._syncedDefaults.push('fix:pain-panini-pack');
+      saveData();
+    }
+
+    // Correction ponctuelle : prix donnés par téléphone (viande, ketchup, saucisson, sachets, œuf, levure, gaz, pains)
+    if(!DATA._syncedDefaults.includes('fix:prices-round2')){
+      const FIXES = {
+        'viande hachée': {packPrice:4000, packSize:1},
+        'ketchups': {packPrice:750, packSize:1},
+        'saucisson': {packPrice:1000, packSize:1},
+        'sachets': {packPrice:100, packSize:1},
+        'œuf': {packPrice:3000, packSize:30},
+        'levure chimique': {packPrice:200, packSize:1},
+        'gaz': {packPrice:5500, packSize:1},
+        'pain chawarma': {packPrice:1200, packSize:1},
+        'pain hamburger': {packPrice:1000, packSize:1},
+      };
+      Object.keys(FIXES).forEach(key=>{
+        const prod = DATA.products.find(p=>p.name.toLowerCase()===key);
+        if(prod && (!prod.packPrice || prod.packPrice===0)){
+          prod.packPrice = FIXES[key].packPrice;
+          prod.packSize = FIXES[key].packSize;
+          prod.price = FIXES[key].packPrice;
+        }
+      });
+      DATA._syncedDefaults.push('fix:prices-round2');
+      saveData();
+    }
+
+    // Correction ponctuelle round 3 : précisions supplémentaires données par téléphone
+    // (le hamburger corrige une valeur erronée réglée par erreur au round 2)
+    if(!DATA._syncedDefaults.includes('fix:prices-round3')){
+      const hb = DATA.products.find(p=>p.name.toLowerCase()==='pain hamburger');
+      if(hb){ hb.packPrice = 250; hb.packSize = 1; hb.price = 250; }
+      const FIXES3 = {
+        'huile': {packPrice:500, packSize:1},
+        'mayo': {packPrice:800, packSize:1},
+      };
+      Object.keys(FIXES3).forEach(key=>{
+        const prod = DATA.products.find(p=>p.name.toLowerCase()===key);
+        if(prod && (!prod.packPrice || prod.packPrice===0)){
+          prod.packPrice = FIXES3[key].packPrice;
+          prod.packSize = FIXES3[key].packSize;
+          prod.price = FIXES3[key].packPrice;
+        }
+      });
+      DATA._syncedDefaults.push('fix:prices-round3');
+      saveData();
+    }
+
+    // Prix habituels observés sur le cahier (stables d'un jour à l'autre)
+    if(!DATA._syncedDefaults.includes('fix:default-prices-round1')){
+      const fixedPrices = {
+        'saucisson': 1000,
+        'huile': 500,
+        'œuf': 2800,
+        'mayo': 750,
+        'ketchups': 750,
+      };
+      Object.keys(fixedPrices).forEach(key=>{
+        const prod = DATA.products.find(p=>p.name.toLowerCase()===key);
+        if(prod && (!prod.packPrice || prod.packPrice===0) && (!prod.packSize || prod.packSize<=1)){
+          prod.packPrice = fixedPrices[key]; prod.packSize = 1; prod.price = fixedPrices[key];
+        }
+      });
+      DATA._syncedDefaults.push('fix:default-prices-round1');
+      saveData();
+    }
+
+    // Restauration : remet les produits par défaut supprimés par erreur (une seule fois)
+    if(!DATA._syncedDefaults.includes('fix:restore-missing-products')){
+      DEFAULT_PRODUCTS.forEach(dp=>{
+        const key = dp.name.toLowerCase();
+        if(!DATA.products.some(p=>p.name.toLowerCase()===key)){
+          DATA.products.push({id:uid(), name:dp.name, cat:dp.cat, price:dp.price, packPrice:dp.packPrice, packSize:dp.packSize});
+        }
+      });
+      DATA._syncedDefaults.push('fix:restore-missing-products');
+      saveData();
+    }
+  }catch(e){ DATA = { products: DEFAULT_PRODUCTS.map(p=>({id:uid(),...p})), days:{}, shopping:{} }; }
+}
+function saveData(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); }catch(e){ toast('Erreur de sauvegarde'); } }
+function getDay(d){ if(!DATA.days[d]) DATA.days[d]={expenses:{},revenues:[],closed:false}; if(!DATA.days[d].expenses) DATA.days[d].expenses={}; if(!DATA.days[d].revenues) DATA.days[d].revenues=[]; return DATA.days[d]; }
+function dayTotals(d){ const day=DATA.days[d]; if(!day) return {dep:0,rec:0,profit:0,dime:0}; let dep=0; Object.values(day.expenses||{}).forEach(e=>{ if(e.checked) dep+=Number(e.price)||0; }); const rec=(day.revenues||[]).reduce((s,r)=>s+r.amount,0); const profit=rec-dep; return {dep,rec,profit,dime:profit*0.10}; }
+function byCat(){ const g={}; DATA.products.forEach(p=>{ (g[p.cat]=g[p.cat]||[]).push(p); }); return g; }
+function sortCats(g){ return Object.keys(g).sort((a,b)=>CAT_ORDER.indexOf(a)-CAT_ORDER.indexOf(b)||a.localeCompare(b)); }
+function unitPriceOf(p){
+  if(p.packSize && Number(p.packSize)>0){ return (Number(p.packPrice)||0) / Number(p.packSize); }
+  return Number(p.price)||0;
+}
+
+document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active'); document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  if(btn.dataset.tab==='historique') renderHistory();
+  if(btn.dataset.tab==='semaine') renderWeek();
+  if(btn.dataset.tab==='mois') renderMonth();
+  if(btn.dataset.tab==='courses') renderShopping();
+}));
+
+const dateInput = document.getElementById('dateInput');
+dateInput.value = todayStr();
+dateInput.addEventListener('change', renderDay);
+
+function renderExpenses(dateStr){
+  const day = getDay(dateStr); const g = byCat(); const cats = sortCats(g);
+  const c = document.getElementById('expenseChecklist'); c.innerHTML='';
+  cats.forEach(cat=>{
+    const h=document.createElement('h2'); h.className='cat'; h.textContent=cat; c.appendChild(h);
+    g[cat].forEach(p=>{
+      const entry = day.expenses[p.id] || {checked:false, qty:'', price:''};
+      const up = unitPriceOf(p);
+      const row = document.createElement('div'); row.className='exp-row';
+      row.innerHTML = `<input type="checkbox" data-pid="${p.id}" class="ec" ${entry.checked?'checked':''}>
+        <span class="pname">${esc(p.name)}${up? ' <span style=\"color:#8b8c89;font-weight:400;\">('+fmt(up)+'/u)</span>':''}</span>
+        <div class="qty-block"><span class="mini-lbl">Qté</span><input type="number" data-pid="${p.id}" class="eq" placeholder="0" min="0" step="0.01" value="${entry.qty!==undefined && entry.qty!=='' ? entry.qty : ''}"></div>
+        <div class="price-block"><span class="mini-lbl">Montant</span><input type="number" data-pid="${p.id}" class="ep" placeholder="0" min="0" step="0.01" value="${entry.price!==undefined && entry.price!=='' ? entry.price : ''}"></div>`;
+      c.appendChild(row);
+    });
+  });
+  c.querySelectorAll('.ec').forEach(cb=>cb.addEventListener('change',()=>{
+    const day=getDay(dateInput.value); const pid=cb.dataset.pid;
+    if(!day.expenses[pid]) day.expenses[pid]={checked:false,qty:'',price:''};
+    day.expenses[pid].checked = cb.checked;
+    saveData(); updateBilan(dateInput.value);
+  }));
+  c.querySelectorAll('.eq').forEach(inp=>inp.addEventListener('input',()=>{
+    const day=getDay(dateInput.value); const pid=inp.dataset.pid;
+    const p = DATA.products.find(x=>x.id===pid);
+    if(!day.expenses[pid]) day.expenses[pid]={checked:false,qty:'',price:''};
+    const qty = parseFloat(inp.value)||0;
+    const computedPrice = qty * unitPriceOf(p);
+    day.expenses[pid].qty = inp.value;
+    day.expenses[pid].price = computedPrice;
+    day.expenses[pid].checked = qty > 0;
+    const row = inp.closest('.exp-row');
+    row.querySelector('.ep').value = computedPrice ? Math.round(computedPrice*100)/100 : '';
+    row.querySelector('.ec').checked = qty > 0;
+    saveData(); updateBilan(dateInput.value);
+  }));
+  c.querySelectorAll('.ep').forEach(inp=>inp.addEventListener('input',()=>{
+    const day=getDay(dateInput.value); const pid=inp.dataset.pid;
+    if(!day.expenses[pid]) day.expenses[pid]={checked:false,qty:'',price:''};
+    const amount = parseFloat(inp.value)||0;
+    day.expenses[pid].price = amount;
+    day.expenses[pid].checked = amount > 0;
+    const row = inp.closest('.exp-row');
+    row.querySelector('.ec').checked = amount > 0;
+    saveData(); updateBilan(dateInput.value);
+  }));
+}
+function renderDay(){
+  const dateStr = dateInput.value || todayStr(); const day = getDay(dateStr);
+  renderExpenses(dateStr);
+  const rb=document.getElementById('revTableBody'); rb.innerHTML='';
+  day.revenues.forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${esc(r.label)}</td><td class="num">${fmt(r.amount)}</td><td><button class="small" data-id="${r.id}">✕</button></td>`; rb.appendChild(tr); });
+  document.getElementById('revEmpty').style.display = day.revenues.length?'none':'block';
+  rb.querySelectorAll('button.small').forEach(b=>b.addEventListener('click',()=>{ day.revenues=day.revenues.filter(r=>r.id!==b.dataset.id); saveData(); renderDay(); }));
+  document.getElementById('closedBadgeWrap').innerHTML = day.closed ? '<span class="badge">✓ Clôturée</span>' : '';
+  updateBilan(dateStr);
+}
+function updateBilan(dateStr){
+  const t = dayTotals(dateStr);
+  document.getElementById('tDep').textContent=fmt(t.dep);
+  document.getElementById('tRec').textContent=fmt(t.rec);
+  document.getElementById('tProfit').textContent=fmt(t.profit);
+  document.getElementById('tDime').textContent=fmt(t.dime);
+  document.getElementById('tProfitLine').classList.toggle('neg', t.profit<0);
+}
+document.getElementById('addRevBtn').addEventListener('click',()=>{
+  const dateStr=dateInput.value||todayStr(); const label=document.getElementById('revLabel').value.trim()||'Vente';
+  const amount=parseFloat(document.getElementById('revAmount').value)||0;
+  if(amount<=0){ toast('Montant invalide'); return; }
+  getDay(dateStr).revenues.push({id:uid(),label,amount}); saveData();
+  document.getElementById('revLabel').value=''; document.getElementById('revAmount').value='';
+  renderDay(); toast('Recette ajoutée');
+});
+document.getElementById('closeDayBtn').addEventListener('click',()=>{
+  const dateStr=dateInput.value||todayStr(); const day=getDay(dateStr); day.closed=true; day.closedAt=Date.now();
+  saveData(); renderDay(); toast('Journée enregistrée. Merci Seigneur…! 🙏');
+});
+
+function renderShopping(){
+  const g=byCat(); const cats=sortCats(g); const c=document.getElementById('shoppingChecklist'); c.innerHTML=''; let total=0;
+  cats.forEach(cat=>{
+    const h=document.createElement('h2'); h.className='cat'; h.textContent=cat; c.appendChild(h);
+    g[cat].forEach(p=>{
+      const qty = Number(DATA.shopping[p.id])||0;
+      const up = unitPriceOf(p);
+      const subtotal = qty*up; total += subtotal;
+      const row=document.createElement('div'); row.className='shop-row';
+      row.innerHTML=`<span class="pname">${esc(p.name)}</span><span class="refp">${up?fmt(up)+'/u':'—'}</span>
+        <input type="number" data-pid="${p.id}" class="sq" placeholder="0" min="0" step="0.01" value="${qty?qty:''}">
+        <span class="subtotal" data-sub="${p.id}">${subtotal?fmt(subtotal):''}</span>`;
+      c.appendChild(row);
+    });
+  });
+  document.getElementById('shopTotal').textContent=fmt(total);
+  c.querySelectorAll('.sq').forEach(inp=>inp.addEventListener('input',()=>{
+    const pid = inp.dataset.pid; const qty = parseFloat(inp.value)||0;
+    DATA.shopping[pid] = qty;
+    const p = DATA.products.find(x=>x.id===pid);
+    const subtotal = qty*unitPriceOf(p);
+    document.querySelector(`[data-sub="${pid}"]`).textContent = subtotal?fmt(subtotal):'';
+    let total = 0;
+    DATA.products.forEach(pr=>{ total += (Number(DATA.shopping[pr.id])||0) * unitPriceOf(pr); });
+    document.getElementById('shopTotal').textContent = fmt(total);
+    saveData();
+  }));
+}
+document.getElementById('resetShopBtn').addEventListener('click',()=>{ DATA.shopping={}; saveData(); renderShopping(); toast('Liste vidée'); });
+
+function renderProducts(){
+  const g=byCat(); const cats=sortCats(g); const c=document.getElementById('prodListByCat'); c.innerHTML='';
+  cats.forEach(cat=>{
+    const h=document.createElement('h2'); h.className='cat'; h.textContent=cat; c.appendChild(h);
+    const table=document.createElement('table'); table.innerHTML='<thead><tr><th>Produit</th><th class="num">Prix paquet</th><th class="num">Unités</th><th class="num">Prix unit.</th><th></th></tr></thead><tbody></tbody>';
+    const tb=table.querySelector('tbody');
+    g[cat].forEach(p=>{
+      const up = unitPriceOf(p);
+      const pp = (p.packPrice!==undefined && p.packPrice!==0) ? p.packPrice : (p.price||'');
+      const ps = (p.packSize!==undefined && p.packSize) ? p.packSize : 1;
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${esc(p.name)}</td>
+        <td class="num"><input type="number" class="pp" data-id="${p.id}" value="${pp}" min="0" step="0.01" style="width:70px;"></td>
+        <td class="num"><input type="number" class="ps" data-id="${p.id}" value="${ps}" min="1" step="1" style="width:50px;"></td>
+        <td class="num" id="up-${p.id}">${up?fmt(up):'—'}</td>
+        <td><button class="small" data-id="${p.id}">✕</button></td>`;
+      tb.appendChild(tr);
+    });
+    c.appendChild(table);
+  });
+  c.querySelectorAll('.pp, .ps').forEach(inp=>inp.addEventListener('input',()=>{
+    const id = inp.dataset.id; const p = DATA.products.find(x=>x.id===id); if(!p) return;
+    const row = inp.closest('tr');
+    p.packPrice = parseFloat(row.querySelector('.pp').value)||0;
+    p.packSize = parseFloat(row.querySelector('.ps').value)||1;
+    p.price = p.packPrice;
+    document.getElementById('up-'+id).textContent = unitPriceOf(p) ? fmt(unitPriceOf(p)) : '—';
+    saveData(); renderShopping();
+  }));
+  c.querySelectorAll('button.small').forEach(b=>b.addEventListener('click',()=>{ DATA.products=DATA.products.filter(p=>p.id!==b.dataset.id); saveData(); renderProducts(); renderDay(); renderShopping(); }));
+}
+document.getElementById('addProdBtn').addEventListener('click',()=>{
+  const name=document.getElementById('newProdName').value.trim(); const cat=document.getElementById('newProdCat').value;
+  const packPrice=parseFloat(document.getElementById('newProdPackPrice').value)||0;
+  const packSize=parseFloat(document.getElementById('newProdPackSize').value)||1;
+  if(!name){ toast('Entrez un nom'); return; }
+  DATA.products.push({id:uid(),name,cat,packPrice,packSize,price:packPrice}); saveData();
+  document.getElementById('newProdName').value=''; document.getElementById('newProdPackPrice').value=''; document.getElementById('newProdPackSize').value='1';
+  renderProducts(); renderDay(); renderShopping(); toast('Produit ajouté');
+});
+
+function renderHistory(){
+  const body=document.getElementById('histTableBody'); body.innerHTML='';
+  const dates=Object.keys(DATA.days).sort().reverse();
+  document.getElementById('histEmpty').style.display=dates.length?'none':'block';
+  dates.forEach(d=>{ const t=dayTotals(d); const day=DATA.days[d]; const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${new Date(d+'T00:00:00').toLocaleDateString('fr-FR')}</td><td class="num">${fmt(t.dep)}</td><td class="num">${fmt(t.rec)}</td><td class="num">${fmt(t.profit)}</td><td class="num">${fmt(t.dime)}</td><td>${day.closed?'✓':''}</td>`;
+    body.appendChild(tr); });
+}
+function isoWeekDates(a){ const anchor=new Date(a+'T00:00:00'); const day=(anchor.getDay()+6)%7; const monday=new Date(anchor); monday.setDate(anchor.getDate()-day);
+  const dates=[]; for(let i=0;i<7;i++){ const d=new Date(monday); d.setDate(monday.getDate()+i); dates.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0')); } return dates; }
+const weekAnchor=document.getElementById('weekAnchor'); weekAnchor.value=todayStr(); weekAnchor.addEventListener('change',renderWeek);
+function renderWeek(){
+  const dates=isoWeekDates(weekAnchor.value||todayStr()); let dep=0,rec=0,profit=0;
+  const body=document.getElementById('wkTableBody'); body.innerHTML='';
+  dates.forEach(d=>{ const t=dayTotals(d); dep+=t.dep; rec+=t.rec; profit+=t.profit;
+    const tr=document.createElement('tr'); tr.innerHTML=`<td>${new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})}</td><td class="num">${fmt(t.dep)}</td><td class="num">${fmt(t.rec)}</td><td class="num">${fmt(t.profit)}</td>`; body.appendChild(tr); });
+  document.getElementById('wkDep').textContent=fmt(dep); document.getElementById('wkRec').textContent=fmt(rec);
+  const wp=document.getElementById('wkProfit'); wp.textContent=fmt(profit); wp.className='amt '+(profit>=0?'avocado':'tomato');
+}
+const monthAnchor=document.getElementById('monthAnchor'); monthAnchor.value=todayStr().slice(0,7); monthAnchor.addEventListener('change',renderMonth);
+function renderMonth(){
+  const [y,m]=(monthAnchor.value||todayStr().slice(0,7)).split('-').map(Number); const days=new Date(y,m,0).getDate();
+  let dep=0,rec=0,profit=0; const body=document.getElementById('moTableBody'); body.innerHTML='';
+  for(let day=1; day<=days; day++){ const d=y+"-"+String(m).padStart(2,'0')+"-"+String(day).padStart(2,'0'); if(!DATA.days[d]) continue;
+    const t=dayTotals(d); dep+=t.dep; rec+=t.rec; profit+=t.profit;
+    const tr=document.createElement('tr'); tr.innerHTML=`<td>${new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</td><td class="num">${fmt(t.dep)}</td><td class="num">${fmt(t.rec)}</td><td class="num">${fmt(t.profit)}</td>`; body.appendChild(tr); }
+  document.getElementById('moDep').textContent=fmt(dep); document.getElementById('moRec').textContent=fmt(rec);
+  const mp=document.getElementById('moProfit'); mp.textContent=fmt(profit); mp.className='amt '+(profit>=0?'avocado':'tomato');
+}
+
+loadData(); renderProducts(); renderDay(); renderShopping();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(e=>console.error('SW error', e));
+  });
+}
+</script>
+</body>
+</html>
